@@ -1,0 +1,13 @@
+{
+  "factoryAddress": "0x86567B53f07090955D0ffA4e6450e9b31EcEa632",
+  "safeAddress": "0xad3c5D938512AF606Fe8afB9a6b2dBd068607393",
+  "safeOwner": "0x2038b08D0Cc542Fc17c1c42F6B5A7edcf491EA77",
+  "safeSingletonAddress": "0x0474d2f1538F604d9A4f1766cf80eBB0051eDC8f",
+  "safeFactoryAddress": "0x6a7575076C9A178771b096953544021Bd259Dec9",
+  "deployedBy": "0x2038b08D0Cc542Fc17c1c42F6B5A7edcf491EA77",
+  "deploymentTime": "2025-05-19T13:19:24.325Z",
+  "network": "monadTestnet",
+  "chainId": "10143",
+  "safeModuleAddress": "0xE4dAd8550aa665a0439eaE2E20cFdfC46F83545F",
+  "isModuleEnabled": true
+}
