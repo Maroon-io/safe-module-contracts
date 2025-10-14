@@ -1,8 +1,8 @@
 {
-  "factoryAddress": "0x0bF2d7514DD93c07201A1e37E8392FCDa5Ad39b5",
-  "safeAddress": "0xb345A5eC60EE45eBac20849f7043f1141A8810B7",
-  "timelockModuleAddress": "0x64633515b6B28585A5DBB0F8E436B1BBaF06c6d6",
+  "factoryAddress": "0xE9C2B74fBfbc51d918DeeE63C36EcABf5CF54082",
+  "safeAddress": "0x5A4A4cE4b66BA244B8c42F2e853242df37933511",
+  "timelockModuleAddress": "0x30cd5454d8bc7b645A4345Ae0AfF84fa7CCaDA27",
   "initialDelay": 1800,
-  "deployedBy": "0x2038b08D0Cc542Fc17c1c42F6B5A7edcf491EA77",
-  "deploymentTime": "2025-05-19T12:48:11.660Z"
+  "deployedBy": "0xB7BA7DFc82a4088c08Ff38FFC3F9d216256D64bc",
+  "deploymentTime": "2025-10-14T15:10:40.936Z"
 }

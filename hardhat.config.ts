@@ -159,6 +159,11 @@ export default {
       chainId: 60808,
       url: "https://rpc.gobob.xyz",
     },
+    somniaTestnet: {
+      chainId: 50312,
+      url: `https://rpc.ankr.com/somnia_testnet`,
+      accounts: [process.env.PRIVATE_KEY || ""],
+    },
   },
   // etherscan: {
   //   apiKey: {

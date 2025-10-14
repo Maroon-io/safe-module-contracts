@@ -10,8 +10,8 @@ const DEFAULT_TIMELOCK_DELAY = 60 * 3; // 3 minutes in seconds
 const SAFE_THRESHOLD = 1; // Single owner for simplicity in testing
 
 // Use the provided addresses
-const SAFE_SINGLETON_ADDRESS = "0x0474d2f1538F604d9A4f1766cf80eBB0051eDC8f";
-const SAFE_FACTORY_ADDRESS = "0x6a7575076C9A178771b096953544021Bd259Dec9";
+const SAFE_SINGLETON_ADDRESS = "0x3cEDc198b6a27E5881458b8f3d5907acAb0BA2AD";
+const SAFE_FACTORY_ADDRESS = "0x34F452053423bb32717cC7c63ce7F60a60da6B78";
 const ADD_MODULES_LIB_ADDRESS = "0x7Da32Af82b35CEc5c88249BdC8232056e762DaB2";
 
 async function main() {
@@ -24,7 +24,7 @@ async function main() {
   const factory = await FactorySafeTimeModuleFactory.deploy(
     deployer.address, 
     DEFAULT_TIMELOCK_DELAY,
-    { gasPrice: ethers.parseUnits('50', 'gwei') }
+    { gasPrice: ethers.parseUnits('10', 'gwei') }
   );
   await factory.waitForDeployment();
   const factoryAddress = await factory.getAddress();
@@ -68,7 +68,7 @@ async function main() {
     SAFE_SINGLETON_ADDRESS,
     setupData,
     saltNonce,
-    { gasPrice: ethers.parseUnits('50', 'gwei') }
+    { gasPrice: ethers.parseUnits('10', 'gwei') }
   );
   
   console.log("Predicted Safe address:", proxyAddress);
@@ -77,7 +77,7 @@ async function main() {
     SAFE_SINGLETON_ADDRESS,
     setupData,
     saltNonce,
-    { gasPrice: ethers.parseUnits('50', 'gwei') }
+    { gasPrice: ethers.parseUnits('10', 'gwei') }
   );
   
   console.log("Creating Safe, transaction hash:", createProxyTx.hash);
@@ -107,7 +107,7 @@ async function main() {
     safeProxyAddress, 
     safeProxyAddress, 
     DEFAULT_TIMELOCK_DELAY, 
-    { gasPrice: ethers.parseUnits('50', 'gwei') }
+    { gasPrice: ethers.parseUnits('10', 'gwei') }
   );
   
   console.log("Module deployment transaction sent, hash:", tx.hash);

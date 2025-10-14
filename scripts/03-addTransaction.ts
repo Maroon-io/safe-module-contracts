@@ -4,7 +4,7 @@ const { time } = require("@nomicfoundation/hardhat-network-helpers");
 
 // Command line arguments for operation mode
 const args = process.argv.slice(2);
-const operation = args[0] || "queue"; // Default to queue if no operation specified
+const operation = args[0] || "execute"; // Default to queue if no operation specified
 // Valid operations: queue, cancel, execute
 
 // Load timelock module address from file
@@ -23,12 +23,17 @@ try {
 }
 
 // Transaction configuration for queuing
-const TARGET_ADDRESS = MODULE_INFO.safeAddress; // Target the Safe by default
-const VALUE_ETH = "0"; 
+// const TARGET_ADDRESS = MODULE_INFO.safeAddress; // Target the Safe by default
+const TARGET_ADDRESS = '0x94Fc2245d6699BbfA71B4698e40a0b76AcD582D8';
+const VALUE_ETH = "0";
 
 // Example transaction: Calling changeThreshold on a Gnosis Safe
-const FUNCTION_SIGNATURE = "changeThreshold(uint256)";
-const FUNCTION_ARGS = [2]; // Change threshold to 2
+// const FUNCTION_SIGNATURE = "changeThreshold(uint256)";
+// const FUNCTION_ARGS = [2]; // Change threshold to 2
+
+// Example transaction: Calling transfer on a Gnosis Safe
+const FUNCTION_SIGNATURE = "transfer(address,uint256)";
+const FUNCTION_ARGS = ['0xe37fa5978b4C776B7d314d9B4a384ef342F97a23', ethers.parseUnits('0.01', 18)]; // Change threshold to 2
 
 const ETA_BUFFER_SECONDS = 60; // Add extra buffer time beyond minimum delay
 
@@ -50,7 +55,7 @@ async function main() {
   console.log("Using account:", signer.address);
 
   const timelockModule = await ethers.getContractAt(
-    "SafeTimelockModule", 
+    "SafeTimelockModule",
     MODULE_INFO.timelockModuleAddress
   );
 
@@ -122,7 +127,12 @@ async function queueTransaction(timelockModule, signer) {
       if (!paramTypes) {
         throw new Error(`Could not parse parameter types from signature: ${FUNCTION_SIGNATURE}`);
       }
-      callData = ethers.AbiCoder.defaultAbiCoder().encode(paramTypes, FUNCTION_ARGS);
+      console.log('paramTypes', paramTypes, 'split', FUNCTION_SIGNATURE.split('(')[0])
+      // callData = ethers.AbiCoder.defaultAbiCoder().encode(paramTypes, FUNCTION_ARGS);
+      callData = iface.encodeFunctionData(
+        FUNCTION_SIGNATURE.split('(')[0], // "transfer"
+        FUNCTION_ARGS // [address, amount]
+      );
     }
     console.log("Encoded Call Data:", callData);
   } else {
