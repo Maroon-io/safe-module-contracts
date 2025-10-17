@@ -50,13 +50,18 @@ contract FactorySafeTimeModule {
         public
         returns (address)
     {
-        SafeTimelockModule timelock = new SafeTimelockModule(msg.sender, _avatar, _target, _initialDelay, address(this));
-        safeTimelockModuleAddresses.push(address(timelock));
-        emit SafeTimelockModuleCreated(msg.sender, _avatar, _target, _initialDelay, address(timelock));
-        return address(timelock);
+//        SafeTimelockModule timelock = new SafeTimelockModule(msg.sender, _avatar, _target, _initialDelay, address(this));
+//        safeTimelockModules[_avatar] = address(timelock);
+//        safeTimelockModuleAddresses.push(address(timelock));
+//        emit SafeTimelockModuleCreated(msg.sender, _avatar, _target, _initialDelay, address(timelock));
+//        return address(timelock);
     }
 
     function getSafeTimelockModuleAddresses() public view returns (address[] memory) {
         return safeTimelockModuleAddresses;
+    }
+
+    function getSafeTimelockModule(address _safe) external view returns (address) {
+        return safeTimelockModules[_safe];
     }
 }

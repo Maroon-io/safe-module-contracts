@@ -55,7 +55,7 @@ export default {
     monadTestnet: {
       chainId: 10143,
       url: `https://testnet-rpc.monad.xyz`,
-      accounts: [process.env.PRIVATE_KEY || ""],
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY || ""],
     },
     sepolia: {
       ...sharedNetworkConfig,
@@ -162,7 +162,7 @@ export default {
     somniaTestnet: {
       chainId: 50312,
       url: `https://rpc.ankr.com/somnia_testnet`,
-      accounts: [process.env.PRIVATE_KEY || ""],
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY || ""],
     },
   },
   // etherscan: {
