@@ -12,7 +12,7 @@ async function main() {
     await ethers.getContractFactory("SafeTimelockModule");
   const safeTimelockModule = await SafeTimelockModule.deploy(
     new ethers.Wallet(process.env.PLATFORM_PRIVATE_KEY, ethers.provider).address,
-    1000,
+    60,
   );
 
   await safeTimelockModule.waitForDeployment();

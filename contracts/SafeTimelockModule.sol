@@ -20,22 +20,30 @@ library Enum {
     }
 }
 
+/**
+ * @title IGnosisSafe
+ * @notice Interface for interacting with a Gnosis Safe instance.
+ */
 interface IGnosisSafe {
-    /// @dev Returns the list of owners of the Safe.
+    /// @notice Returns the list of owners of the Safe.
     /// @return The list of owners of the Safe.
     function getOwners() external view returns (address[] memory);
 
     /**
-     * @notice Returns if `owner` is an owner of the Safe.
-     * @return Boolean if `owner` is an owner of the Safe.
+     * @notice Returns whether a given address is an owner of the Safe.
+     * @param owner The address to check ownership for.
+     * @return Boolean value indicating if `owner` is an owner.
      */
     function isOwner(address owner) external view returns (bool);
 
-    /// @dev Allows a Module to execute a Safe transaction without any further confirmations.
-    /// @param to Destination address of module transaction.
-    /// @param value Ether value of module transaction.
-    /// @param data Data payload of module transaction.
-    /// @param operation Operation type of module transaction.
+    /**
+     * @notice Allows a Module to execute a Safe transaction without further confirmations.
+     * @param to Destination address of the module transaction.
+     * @param value Ether value of the module transaction.
+     * @param data Data payload of the module transaction.
+     * @param operation Type of operation (`Call` or `DelegateCall`).
+     * @return success Boolean indicating if the execution was successful.
+     */
     function execTransactionFromModule(
         address to,
         uint256 value,
@@ -44,6 +52,10 @@ interface IGnosisSafe {
     ) external returns (bool success);
 }
 
+/**
+ * @title SafeTimelockModule
+ * @notice Timelock module for Gnosis Safe that enforces a delay before queued transactions can be executed.
+ */
 contract SafeTimelockModule is Ownable {
     event NewDelay(uint indexed newDelay);
     event PlatformSet(address indexed platform);
@@ -51,10 +63,20 @@ contract SafeTimelockModule is Ownable {
     event CancelTransaction(bytes32 indexed txHash, address indexed safe, address indexed caller, address to, uint value, bytes data, uint eta);
     event ExecuteTransaction(bytes32 indexed txHash, address indexed safe, address indexed caller, address to, uint value, bytes data, uint eta);
 
+    /// @notice Current timelock delay in seconds.
     uint public timelockDelay;
-    address public platform;  // Platform EOA
+
+    /// @notice Platform EOA address that can be updated by Safe owner.
+    address public platform;
+
+    /// @notice Mapping of queued transaction hashes to their active status.
     mapping (bytes32 => bool) public queuedTransactions;
 
+    /**
+     * @notice Initializes the timelock module with a platform address and initial delay.
+     * @param _platform The address of the platform EOA.
+     * @param _initialDelay The initial timelock delay in seconds.
+     */
     constructor(address _platform, uint256 _initialDelay) Ownable(msg.sender) {
         require(_platform != address(0), "Invalid platform address");
         platform = _platform;
@@ -63,6 +85,10 @@ contract SafeTimelockModule is Ownable {
         emit PlatformSet(_platform);
     }
 
+    /**
+     * @notice Modifier that ensures the caller is an owner of the Safe but not the platform address.
+     * @param _safe Address of the Gnosis Safe being interacted with.
+     */
     modifier onlyNonPlatformOwner(address _safe) {
         address[] memory owners = IGnosisSafe(_safe).getOwners();
         bool isOwner = false;
@@ -87,6 +113,8 @@ contract SafeTimelockModule is Ownable {
         emit PlatformSet(_platform);
     }
 
+    /// @notice Queues a transaction that can be executed after the timelock delay.
+    /// @dev Emits a {QueueTransaction} event.
     function queueTransaction(
         address _safe,
         address _to,
@@ -103,6 +131,8 @@ contract SafeTimelockModule is Ownable {
         return txHash;
     }
 
+    /// @notice Cancels a previously queued transaction.
+    /// @dev Emits a {CancelTransaction} event.
     function cancelTransaction(
         address _safe,
         address _to,
@@ -116,6 +146,8 @@ contract SafeTimelockModule is Ownable {
         emit CancelTransaction(txHash, _safe, msg.sender, _to, _value, _data, _eta);
     }
 
+    /// @notice Executes a queued transaction after the delay has passed.
+    /// @dev Calls {IGnosisSafe.execTransactionFromModule}. Emits {ExecuteTransaction}.
     function executeTransaction(
         address _safe,
         address _to,
