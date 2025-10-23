@@ -102,13 +102,18 @@ const getETA = async (timelockDelay: any) => {
   return eta;
 };
 
-const getTxEventDetails = (timelockModule: any, receipt: any) => {
+const getTxEventDetails = (timelockModule: any, receipt: any, type: string) => {
   for (const log of receipt.logs) {
     try {
       const parsedLog = timelockModule.interface.parseLog(log);
-      if (parsedLog && parsedLog.name === "QueueTransaction") {
+      if (
+        parsedLog &&
+        ((type === "queue" && parsedLog.name === "QueueTransaction") ||
+          (type === "cancel" && parsedLog.name === "CancelTransaction") ||
+          (type === "execute" && parsedLog.name === "ExecuteTransaction"))
+      ) {
         return {
-          queuedTxEvent: parsedLog,
+          loggedEvent: parsedLog,
         };
       }
     } catch (e) {
@@ -164,25 +169,39 @@ async function queueTransaction(timelockModule: any, signer: any) {
     console.log("QueueTransaction mined successfully.");
 
     if (receipt && receipt.logs) {
-      const { queuedTxEvent } = getTxEventDetails(timelockModule, receipt) as {
-        queuedTxEvent: any;
+      const { loggedEvent } = getTxEventDetails(
+        timelockModule,
+        receipt,
+        "queue",
+      ) as {
+        loggedEvent: any;
       };
 
-      const queuedTxDetails = {
-        txHash: queuedTxEvent.args.txHash,
-        target: queuedTxEvent.args.to,
-        value: valueToSend.toString(),
-        data: callData,
-        eta: eta.toString(),
-        queuedAt: new Date().toISOString(),
-        executesAfter: new Date(Number(eta) * 1000).toISOString(),
-        tx: tx.hash,
-      };
+      if (loggedEvent) {
+        console.log("Transaction Queued successfully");
 
-      fs.writeFileSync(
-        "queued-tx.json",
-        JSON.stringify(queuedTxDetails, null, 2),
-      );
+        const queuedTxDetails = {
+          safeAddress: loggedEvent.args.safe,
+          txHash: loggedEvent.args.txHash,
+          target: loggedEvent.args.to,
+          value: valueToSend.toString(),
+          data: callData,
+          eta: eta.toString(),
+          queuedAt: new Date().toISOString(),
+          executesAfter: new Date(Number(eta) * 1000).toISOString(),
+          tx: tx.hash,
+        };
+
+        fs.writeFileSync(
+          "queued-tx.json",
+          JSON.stringify(queuedTxDetails, null, 2),
+        );
+        console.log("Added transaction details to queued-tx.json");
+      } else {
+        console.warn(
+          "QueueTransaction event not found in receipt. Check contract events manually.",
+        );
+      }
     }
   } catch (error) {
     console.error("Error queueing transaction:", error);
@@ -226,44 +245,42 @@ async function cancelTransaction(timelockModule: any, signer: any) {
     const receipt = await tx.wait();
     console.log("Cancel transaction mined successfully.");
 
-    let cancelEvent;
     if (receipt && receipt.logs) {
-      for (const log of receipt.logs) {
-        try {
-          const parsedLog = timelockModule.interface.parseLog(log);
-          if (parsedLog && parsedLog.name === "CancelTransaction") {
-            cancelEvent = parsedLog;
-            break;
-          }
-        } catch (e) {
-          /* Skip logs that aren't from our module */
-        }
+      const { loggedEvent } = getTxEventDetails(
+        timelockModule,
+        receipt,
+        "cancel",
+      ) as {
+        loggedEvent: any;
+      };
+
+      if (loggedEvent) {
+        console.log("Transaction Cancelled successfully");
+
+        // Update the queued-tx file with cancellation info
+        queuedTxData.cancelled = true;
+        queuedTxData.cancelledAt = new Date().toISOString();
+        queuedTxData.cancelTx = tx.hash;
+
+        fs.writeFileSync(
+          "queued-tx.json",
+          JSON.stringify(queuedTxData, null, 2),
+        );
+        console.log("Updated transaction details in queued-tx.json");
+      } else {
+        console.warn(
+          "CancelTransaction event not found in receipt. Check contract events manually.",
+        );
       }
     }
-
-    if (cancelEvent) {
-      console.log("\n✅ Transaction Cancelled successfully!");
-
-      // Update the queued-tx file with cancellation info
-      queuedTxData.cancelled = true;
-      queuedTxData.cancelledAt = new Date().toISOString();
-      queuedTxData.cancelTx = tx.hash;
-
-      fs.writeFileSync("queued-tx.json", JSON.stringify(queuedTxData, null, 2));
-      console.log("\nUpdated transaction details in queued-tx.json");
-    } else {
-      console.warn(
-        "⚠️ CancelTransaction event not found in receipt. Check contract events manually.",
-      );
-    }
   } catch (error) {
-    console.error("❌ Error cancelling transaction:", error);
+    console.error("Error cancelling transaction:", error);
     process.exit(1);
   }
 }
 
 async function executeTransaction(timelockModule: any, signer: any) {
-  console.log("\n=== Executing Transaction ===");
+  console.log("Executing Transaction");
 
   await checkIsSafeOwner(signer.address);
   console.log("Using account:", signer.address);
@@ -279,16 +296,6 @@ async function executeTransaction(timelockModule: any, signer: any) {
     );
     process.exit(1);
   }
-
-  console.log("\nExecuting transaction with details:");
-  console.log("  Target:", queuedTxData.target);
-  console.log(
-    "  Value:",
-    queuedTxData.value,
-    `(${ethers.formatEther(queuedTxData.value)} ETH)`,
-  );
-  console.log("  Data:", queuedTxData.data);
-  console.log("  ETA:", queuedTxData.eta, `(${queuedTxData.executesAfter})`);
 
   try {
     const unsignedTx =
@@ -308,38 +315,36 @@ async function executeTransaction(timelockModule: any, signer: any) {
     const receipt = await tx.wait();
     console.log("Execute transaction mined successfully.");
 
-    let executeEvent;
     if (receipt && receipt.logs) {
-      for (const log of receipt.logs) {
-        try {
-          const parsedLog = timelockModule.interface.parseLog(log);
-          if (parsedLog && parsedLog.name === "ExecuteTransaction") {
-            executeEvent = parsedLog;
-            break;
-          }
-        } catch (e) {
-          /* Skip logs that aren't from our module */
-        }
+      const { loggedEvent } = getTxEventDetails(
+        timelockModule,
+        receipt,
+        "execute",
+      ) as {
+        loggedEvent: any;
+      };
+
+      if (loggedEvent) {
+        console.log("Transaction Executed successfully");
+
+        // Update the queued-tx file with execution info
+        queuedTxData.executed = true;
+        queuedTxData.executedAt = new Date().toISOString();
+        queuedTxData.executeTx = tx.hash;
+
+        fs.writeFileSync(
+          "queued-tx.json",
+          JSON.stringify(queuedTxData, null, 2),
+        );
+        console.log("Updated transaction details in queued-tx.json");
+      } else {
+        console.warn(
+          "ExecuteTransaction event not found in receipt. Check contract events manually.",
+        );
       }
     }
-
-    if (executeEvent) {
-      console.log("\n✅ Transaction Executed successfully!");
-
-      // Update the queued-tx file with execution info
-      queuedTxData.executed = true;
-      queuedTxData.executedAt = new Date().toISOString();
-      queuedTxData.executeTx = tx.hash;
-
-      fs.writeFileSync("queued-tx.json", JSON.stringify(queuedTxData, null, 2));
-      console.log("\nUpdated transaction details in queued-tx.json");
-    } else {
-      console.warn(
-        "⚠️ ExecuteTransaction event not found in receipt. Check contract events manually.",
-      );
-    }
   } catch (error: any) {
-    console.error("❌ Error executing transaction:", error);
+    console.error("Error executing transaction:", error);
     console.error(error.message);
     process.exit(1);
   }
