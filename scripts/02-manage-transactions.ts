@@ -1,32 +1,25 @@
-const { ethers, network } = require("hardhat");
-const fs = require("fs");
-const { time } = require("@nomicfoundation/hardhat-network-helpers");
-console.log("args:", process.argv.slice(2));
+import { ethers, network } from "hardhat";
+import * as fs from "fs";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 
-// Command line arguments for operation mode
-const args = process.argv.slice(2);
-
-const operation = process.env.OPERATION || "queue";
-// const operation = args[0] || "queue"; // Default to queue if no operation specified
 // Valid operations: queue, cancel, execute
+const operation = process.env.OPERATION || "queue";
 
-// Load timelock module address from file
-let MODULE_INFO;
+// Load safe details from disk
+const safeDeploymentLocation = "safe-deployment.json";
+const deployScriptLocation = "scripts/00-deploy-timelock-module.ts";
+let safeDeploymentDetails: any;
+
 try {
-  MODULE_INFO = JSON.parse(fs.readFileSync("module-deployment.json"));
-  console.log("Loaded addresses from module-deployment.json");
+  safeDeploymentDetails = JSON.parse(
+    fs.readFileSync(safeDeploymentLocation, "utf8"),
+  );
+  console.log("Loaded Safe deployment details");
 } catch (error) {
   console.warn(
-    "Could not load module-deployment.json. Please make sure to run 02-deploy-timelock-module.ts first",
+    `Unable to load Safe deployment. Run ${deployScriptLocation} first`,
   );
-  console.warn(
-    "Using default placeholder addresses - modify these with your actual addresses",
-  );
-  MODULE_INFO = {
-    timelockModuleAddress: "0xAcD3d2442299DfF4d1a449dfcFa6dAE551DE150F",
-    safeAddress: "0xb345A5eC60EE45eBac20849f7043f1141A8810B7",
-    initialDelay: 60 * 3, // 3 minutes
-  };
+  process.exit(1);
 }
 
 const queuedTxConfig = {
@@ -49,18 +42,18 @@ let queuedTx = {
 
 async function main() {
   const signer1 = new ethers.Wallet(
-    process.env.OWNER1_PRIVATE_KEY,
+    process.env.OWNER1_PRIVATE_KEY as string,
     ethers.provider,
   );
 
   const signer2 = new ethers.Wallet(
-    process.env.OWNER2_PRIVATE_KEY,
+    process.env.OWNER2_PRIVATE_KEY as string,
     ethers.provider,
   );
 
   const timelockModule = await ethers.getContractAt(
     "SafeTimelockModule",
-    "0x47ff6dec29BF0AD4D650129fa37920d09245da61",
+    safeDeploymentDetails.safeTimelockModuleAddress,
   );
 
   switch (operation.toLowerCase()) {
@@ -84,11 +77,14 @@ async function main() {
 async function checkIsSafeOwner(signerAddress: string) {
   const safe = await ethers.getContractAt(
     "contracts/SafeTimelockModule.sol:IGnosisSafe",
-    queuedTxConfig.safeAddress,
+    safeDeploymentDetails.safeAddress,
   );
 
   try {
-    return await safe.isOwner(signerAddress);
+    const owners: any[] = await safe.getOwners();
+    return owners
+      .map((o) => o.toLowerCase())
+      .includes(signerAddress.toLowerCase());
   } catch (error) {
     console.error(
       "ERROR: Signer is not a Safe owner. Only Safe owners can interact with the SafeTimelockModule.",
@@ -97,24 +93,24 @@ async function checkIsSafeOwner(signerAddress: string) {
   }
 }
 
-const getETA = async (timelockDelay) => {
-  let currentTimestampSeconds: BigInt;
+const getETA = async (timelockDelay: any) => {
+  let currentTimestampSeconds;
 
-  if (network.name === "hardhat" || network.name === "localhost") {
-    currentTimestampSeconds = BigInt(await time.latest());
+  if (["hardhat", "localhost"].includes(network.name)) {
+    currentTimestampSeconds = await time.latest();
   } else {
     const latestBlock = await ethers.provider.getBlock("latest");
     if (!latestBlock) {
       throw new Error("Could not fetch the latest block from the provider.");
     }
-    currentTimestampSeconds = BigInt(latestBlock.timestamp);
+    currentTimestampSeconds = latestBlock.timestamp;
   }
   console.log(
     "Current block timestamp (seconds):",
     currentTimestampSeconds.toString(),
   );
 
-  const eta = currentTimestampSeconds + timelockDelay;
+  const eta = currentTimestampSeconds + Number(timelockDelay);
   console.log("Calculated ETA (timestamp):", eta.toString());
   console.log(
     "Calculated ETA (Date):",
@@ -124,93 +120,75 @@ const getETA = async (timelockDelay) => {
   return eta;
 };
 
+const getTxEventDetails = (timelockModule: any, receipt: any) => {
+  for (const log of receipt.logs) {
+    try {
+      const parsedLog = timelockModule.interface.parseLog(log);
+      if (parsedLog && parsedLog.name === "QueueTransaction") {
+        return {
+          queuedTxEvent: parsedLog,
+        };
+      }
+    } catch (e) {
+      /* Skip logs that aren't from our module */
+    }
+  }
+};
+
 async function queueTransaction(timelockModule: any, signer: any) {
-  console.log("\n=== Queueing Transaction ===");
+  console.log("Queueing Transaction...");
 
   await checkIsSafeOwner(signer.address);
   console.log("Using account:", signer.address);
 
-  // Debug: Check contract state
-  const platform = await timelockModule.platform();
-  const owner = await timelockModule.owner();
-  console.log("Platform address:", platform);
-  console.log("Contract owner:", owner);
-  console.log("Signer address:", signer.address);
-
-  // 1. Get timelock delay from the module
+  // Get timelock delay from the module
   const timelockDelay = await timelockModule.getTimelockDelay();
   console.log("Current timelock delay (seconds): ", timelockDelay.toString());
 
-  // 2. Calculate ETA
+  // Calculate ETA
   const eta = await getETA(timelockDelay);
 
-  // 3. Encode Call Data
+  // Encode Call Data
   const iface = new ethers.Interface(["function transfer(address,uint256)"]);
   const callData = iface.encodeFunctionData("transfer", [
     "0xe37fa5978b4C776B7d314d9B4a384ef342F97a23",
     ethers.parseUnits("100", 18),
   ]);
 
-  const valueEth = queuedTxConfig.value;
+  // Set tx target
+  const targetAddress = "0x94Fc2245d6699BbfA71B4698e40a0b76AcD582D8";
+
+  // Set tx value
+  const valueEth = "0";
   const valueToSend = ethers.parseEther(valueEth);
 
-  // 4. Queue the transaction
-  console.log("\nQueueing transaction with parameters:");
-  console.log("  Target:", queuedTxConfig.targetAddress);
-  console.log("  Value:", valueToSend.toString(), `(${valueEth} ETH)`);
-  console.log("  Data:", callData);
-  console.log("  ETA:", eta.toString());
-
+  // Queue the transaction
   try {
     const unsignedTx =
       await timelockModule.queueTransaction.populateTransaction(
-        queuedTxConfig.safeAddress,
-        queuedTxConfig.targetAddress,
+        safeDeploymentDetails.safeAddress,
+        targetAddress,
         valueToSend,
         callData,
-        eta + BigInt(60),
+        eta + 60, // add buffer to account for time diff when reading block timestamp
       );
-    console.log("Transaction to sign:", unsignedTx);
+    console.log("Unsigned QueueTransaction:", unsignedTx);
 
     // Sign and send tx
     const tx = await signer.sendTransaction(unsignedTx);
-    console.log("Transaction sent, hash:", tx.hash);
+    console.log("QueueTransaction sent, hash:", tx.hash);
 
     const receipt = await tx.wait();
-    console.log("Transaction mined successfully.");
+    console.log("QueueTransaction mined successfully.");
 
-    let queuedTxHash;
-    let queueEvent;
     if (receipt && receipt.logs) {
-      for (const log of receipt.logs) {
-        try {
-          const parsedLog = timelockModule.interface.parseLog(log);
-          if (parsedLog && parsedLog.name === "QueueTransaction") {
-            queuedTxHash = parsedLog.args.txHash;
-            queueEvent = parsedLog;
-            break;
-          }
-        } catch (e) {
-          /* Skip logs that aren't from our module */
-        }
-      }
-    }
+      const { queuedTxEvent } = getTxEventDetails(timelockModule, receipt) as {
+        queuedTxEvent: any;
+      };
 
-    if (queuedTxHash) {
-      console.log("\n✅ Transaction Queued successfully!");
-      console.log("  Queued Tx Hash:", queuedTxHash);
-      console.log("  Target:", queueEvent.args.to);
-      console.log("  Value:", ethers.formatEther(queueEvent.args.value), "ETH");
-      console.log("  Data:", queueEvent.args.data);
-      console.log(
-        "  ETA:",
-        new Date(Number(queueEvent.args.eta) * 1000).toUTCString(),
-      );
-
-      // Save this transaction info to a file for later execution or cancellation
-      queuedTx = {
-        txHash: queuedTxHash,
-        target: queuedTxConfig.targetAddress,
+      const queuedTxDetails = {
+        txHash: queuedTxEvent.args.txHash,
+        target: queuedTxEvent.args.to,
         value: valueToSend.toString(),
         data: callData,
         eta: eta.toString(),
@@ -218,21 +196,17 @@ async function queueTransaction(timelockModule: any, signer: any) {
         executesAfter: new Date(Number(eta) * 1000).toISOString(),
         tx: tx.hash,
       };
-
-      fs.writeFileSync("queued-tx.json", JSON.stringify(queuedTx, null, 2));
-    } else {
-      console.warn(
-        "⚠️ QueueTransaction event not found in receipt. Check contract events manually.",
-      );
     }
+
+    fs.writeFileSync("queued-tx.json", JSON.stringify(queuedTx, null, 2));
   } catch (error) {
-    console.error("❌ Error queueing transaction:", error);
+    console.error("Error queueing transaction:", error);
     process.exit(1);
   }
 }
 
-async function cancelTransaction(timelockModule, signer) {
-  console.log("\n=== Cancelling Transaction ===");
+async function cancelTransaction(timelockModule: any, signer: any) {
+  console.log("Cancelling Transaction");
 
   await checkIsSafeOwner(signer.address);
   console.log("Using account:", signer.address);
@@ -240,7 +214,7 @@ async function cancelTransaction(timelockModule, signer) {
   // Load the queued transaction from file
   let queuedTxData;
   try {
-    queuedTxData = JSON.parse(fs.readFileSync("queued-tx.json"));
+    queuedTxData = JSON.parse(fs.readFileSync("queued-tx.json", "utf8"));
     console.log("Loaded transaction from queued-tx.json");
   } catch (error) {
     console.error(
@@ -248,16 +222,6 @@ async function cancelTransaction(timelockModule, signer) {
     );
     process.exit(1);
   }
-
-  console.log("\nCancelling transaction with details:");
-  console.log("  Target:", queuedTxData.target);
-  console.log(
-    "  Value:",
-    queuedTxData.value,
-    `(${ethers.formatEther(queuedTxData.value)} ETH)`,
-  );
-  console.log("  Data:", queuedTxData.data);
-  console.log("  ETA:", queuedTxData.eta);
 
   try {
     const unsignedTx =
@@ -313,7 +277,7 @@ async function cancelTransaction(timelockModule, signer) {
   }
 }
 
-async function executeTransaction(timelockModule, signer) {
+async function executeTransaction(timelockModule: any, signer: any) {
   console.log("\n=== Executing Transaction ===");
 
   await checkIsSafeOwner(signer.address);
@@ -322,7 +286,7 @@ async function executeTransaction(timelockModule, signer) {
   // Load the queued transaction from file
   let queuedTxData;
   try {
-    queuedTxData = JSON.parse(fs.readFileSync("queued-tx.json"));
+    queuedTxData = JSON.parse(fs.readFileSync("queued-tx.json", "utf8"));
     console.log("Loaded transaction from queued-tx.json");
   } catch (error) {
     console.error(
@@ -389,7 +353,7 @@ async function executeTransaction(timelockModule, signer) {
         "⚠️ ExecuteTransaction event not found in receipt. Check contract events manually.",
       );
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error executing transaction:", error);
     console.error(error.message);
     process.exit(1);
