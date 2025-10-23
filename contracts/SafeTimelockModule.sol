@@ -2,23 +2,7 @@
 pragma solidity ^0.8.10;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-
-/**
- * @title Enum
- * @notice Collection of enums used in Safe Smart Account contracts.
- * @author @safe-global/safe-protocol
- */
-library Enum {
-    /**
-     * @notice A Safe transaction operation.
-     * @custom:variant Call The Safe transaction is executed with the `CALL` opcode.
-     * @custom:variant Delegatecall The Safe transaction is executed with the `DELEGATECALL` opcode.
-     */
-    enum Operation {
-        Call,
-        DelegateCall
-    }
-}
+import { Enum } from "./lib/Enum.sol";
 
 /**
  * @title IGnosisSafe
