@@ -185,10 +185,11 @@ typechain/
 typechain-types/
 
 # Deployment files (uncomment if you want to ignore deployment artifacts)
-# deployedAddresses.txt
-# module-deployment.json
-# safe-factory-deployment.json
-# queued-tx.json
+deployedAddresses.txt
+module-deployment.json
+safe-factory-deployment.json
+safe-deployment.json
+queued-tx.json
 
 # Test coverage
 coverage/

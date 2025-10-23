@@ -1,8 +1,0 @@
-{
-  "factoryAddress": "0x0bF2d7514DD93c07201A1e37E8392FCDa5Ad39b5",
-  "safeAddress": "0xb345A5eC60EE45eBac20849f7043f1141A8810B7",
-  "timelockModuleAddress": "0x64633515b6B28585A5DBB0F8E436B1BBaF06c6d6",
-  "initialDelay": 1800,
-  "deployedBy": "0x2038b08D0Cc542Fc17c1c42F6B5A7edcf491EA77",
-  "deploymentTime": "2025-05-19T12:48:11.660Z"
-}
