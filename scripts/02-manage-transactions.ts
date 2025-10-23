@@ -22,24 +22,6 @@ try {
   process.exit(1);
 }
 
-const queuedTxConfig = {
-  safeAddress: "0x765a409ae91E667B31f57165b006C738a06612f3",
-  targetAddress: "0x94Fc2245d6699BbfA71B4698e40a0b76AcD582D8",
-  value: "0",
-};
-
-// Store transaction info for cancellation/execution
-let queuedTx = {
-  txHash: "",
-  target: "",
-  value: 0,
-  data: "",
-  eta: 0,
-  queuedAt: "",
-  executesAfter: "",
-  tx: "",
-};
-
 async function main() {
   const signer1 = new ethers.Wallet(
     process.env.OWNER1_PRIVATE_KEY as string,
@@ -196,9 +178,12 @@ async function queueTransaction(timelockModule: any, signer: any) {
         executesAfter: new Date(Number(eta) * 1000).toISOString(),
         tx: tx.hash,
       };
-    }
 
-    fs.writeFileSync("queued-tx.json", JSON.stringify(queuedTx, null, 2));
+      fs.writeFileSync(
+        "queued-tx.json",
+        JSON.stringify(queuedTxDetails, null, 2),
+      );
+    }
   } catch (error) {
     console.error("Error queueing transaction:", error);
     process.exit(1);
