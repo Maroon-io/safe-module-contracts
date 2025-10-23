@@ -36,6 +36,10 @@ npx hardhat run scripts/00-deploy-timelock-module.ts --network somniaTestnet
 npx hardhat run scripts/01-module-setup.ts --network somniaTestnet
 ```
 
+Then, update `/deployed-addresses/somnia-safe-contracts.json`:
+
+- Set `safeTimelockModule` to address of deployed module contract.
+
 ### To queue a transaction:
 
 ```bash
