@@ -18,7 +18,7 @@ export default {
     sources: "contracts",
   },
   solidity: {
-    compilers: [{ version: "0.8.20" }],
+    compilers: [{ version: "0.8.30" }],
     settings: {
       optimizer: {
         enabled: true,
