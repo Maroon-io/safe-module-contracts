@@ -27,8 +27,7 @@ export default {
     },
   },
   networks: {
-    hardhat: {
-    },
+    hardhat: {},
     test: {
       url: "http://localhost:8545",
       chainId: 31337,
@@ -162,6 +161,21 @@ export default {
     somniaTestnet: {
       chainId: 50312,
       url: `https://rpc.ankr.com/somnia_testnet`,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY || ""],
+    },
+    sonicTestnet: {
+      chainId: 14601,
+      url: `https://rpc.testnet.soniclabs.com`,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY || ""],
+    },
+    megaethTestnet: {
+      chainId: 6343,
+      url: `https://carrot.megaeth.com/rpc`,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY || ""],
+    },
+    bnbTestnet: {
+      chainId: 97,
+      url: `https://bsc-testnet-rpc.publicnode.com`,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY || ""],
     },
   },
