@@ -170,7 +170,7 @@ export default {
     },
     megaethTestnet: {
       chainId: 6343,
-      url: `https://timothy.megaeth.com/rpc`,
+      url: `https://carrot.megaeth.com/rpc`,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY || ""],
     },
     bnbTestnet: {
